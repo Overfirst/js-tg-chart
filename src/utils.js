@@ -79,3 +79,11 @@ export function boundaries({ columns, types }) {
 export function css(element, styles = {}) {
   Object.assign(element.style, styles);
 }
+
+export function toCoords(xRatio, yRatio, DPI_HEIGHT, PADDING) {
+  return (col) => col.map((y, index) => [
+    Math.floor((index - 1) * xRatio),
+    Math.floor(DPI_HEIGHT - PADDING - y * yRatio)
+  ])
+  .filter((_, index) => index !== 0);
+}
