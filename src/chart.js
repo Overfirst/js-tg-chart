@@ -1,5 +1,5 @@
 import { tooltip } from './tooltip';
-import { toDate, line, circle, isOver, boundaries, css, toCoords } from './utils'
+import { toDate, line, circle, isOver, boundaries, css, toCoords, computeYRatio, computeXRatio } from './utils'
 import { sliderChart } from './slider';
 
 const PADDING = 40;
@@ -40,6 +40,10 @@ export function chart(root, data) {
     }
   });
 
+  slider.subscribe(position => {
+    proxy.position = position;
+  });
+
   canvas.addEventListener('mousemove', mousemove);
   canvas.addEventListener('mouseleave', mouseleave);
 
@@ -49,18 +53,32 @@ export function chart(root, data) {
 
   function paint() {
     clear();
-    const [yMin, yMax] = boundaries(data);
 
-    const xRatio = VIEW_WIDTH / (data.columns[0].length - 2);
-    const yRatio = VIEW_HEIGHT / (yMax - yMin);
-  
-    const xData = data.columns.filter(col => data.types[col[0]] !== 'line')[0];
-    const yData = data.columns.filter(col => data.types[col[0]] === 'line');
+    const length = data.columns[0].length;
+
+    const leftIndex = Math.round(length * proxy.position[0] / 100);
+    const rightIndex = Math.round(length * proxy.position[1] / 100);
+
+    const columns = data.columns.map(col => {
+      const result = col.slice(leftIndex, rightIndex);
+      if (typeof result[0] !== 'string') {
+        result.unshift(col[0]);
+      }
+      return result;
+    });
+
+    const [yMin, yMax] = boundaries({columns, types: data.types});
+
+    const xRatio = computeXRatio(VIEW_WIDTH, columns[0].length);
+    const yRatio = computeYRatio(VIEW_HEIGHT, yMax, yMin);
+
+    const xData = columns.filter(col => data.types[col[0]] !== 'line')[0];
+    const yData = columns.filter(col => data.types[col[0]] === 'line');
      
     yAxis(yMin, yMax);
     xAxis(xData, yData, xRatio);
   
-    yData.map(toCoords(xRatio, yRatio, DPI_HEIGHT, PADDING)).forEach((points, index) => {
+    yData.map(toCoords(xRatio, yRatio, DPI_HEIGHT, PADDING, yMin)).forEach((points, index) => {
       const color = data.colors[yData[index][0]];
       line(ctx, points, { color });
 
